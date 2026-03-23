@@ -90,18 +90,34 @@ class VanRhijn:
 
         R = earth_radius_km
         h = layer_altitude_km
-        ratio = R / (R + h)               # dimensionless, < 1
+        ratio = R / (R + h)               # dimensionless, always < 1 for h > 0
 
-        # Critical zenith angle (ray tangent to layer)
-        critical_rad = np.arcsin(1.0 / ratio) if ratio <= 1.0 else np.inf
-        critical_deg = np.degrees(critical_rad)
-
-        if np.any(theta_deg >= critical_deg):
-            raise ValueError(
-                f"zenith_angle_deg must be < critical angle "
-                f"({critical_deg:.4f}°) for layer_altitude_km={layer_altitude_km} km. "
-                "The ray would be tangent to or pass below the emitting layer."
-            )
+        # Critical zenith angle: the ray becomes tangent to the emitting layer
+        # when ratio * sin(θ) = 1, i.e. sin(θ_crit) = 1/ratio.
+        # For a surface observer ratio < 1, so 1/ratio > 1 and arcsin is
+        # undefined — the critical condition is never reached within the
+        # hemisphere (θ < 90°).  For completeness, if the observer were placed
+        # above the layer (ratio > 1), a real critical angle exists.
+        if ratio >= 1.0:
+            # Observer above the layer: critical angle exists.
+            sin_crit = 1.0 / ratio
+            critical_rad = float(np.arcsin(np.clip(sin_crit, -1.0, 1.0)))
+            critical_deg = float(np.degrees(critical_rad))
+            if np.any(theta_deg >= critical_deg):
+                raise ValueError(
+                    f"zenith_angle_deg must be < critical angle "
+                    f"({critical_deg:.4f}°) for layer_altitude_km={layer_altitude_km} km. "
+                    "The ray would be tangent to or pass below the emitting layer."
+                )
+        else:
+            # Surface observer: discriminant > 0 for all θ ∈ [0°, 90°).
+            # Reject only θ ≥ 90° (below the horizon).
+            critical_deg = 90.0
+            if np.any(theta_deg >= 90.0):
+                raise ValueError(
+                    "zenith_angle_deg must be < 90° (below-horizon angles are "
+                    "not physical for this geometry)."
+                )
 
         sin2 = np.sin(theta_rad) ** 2
         discriminant = 1.0 - ratio ** 2 * sin2
@@ -298,11 +314,14 @@ class VanRhijn:
         h = layer_altitude_km
         ratio = R / (R + h)
 
-        # Critical zenith angle (ray tangent to layer)
-        if ratio < 1.0:
-            critical_rad = math.asin(1.0 / ratio)
+        # Critical zenith angle (ray tangent to layer).
+        # For a surface observer ratio = R/(R+h) < 1, so 1/ratio > 1 and
+        # the tangent condition is never reached within the hemisphere.
+        # math.asin is clamped to 1.0 to yield π/2 in that case.
+        if ratio >= 1.0:
+            critical_rad = math.asin(min(1.0 / ratio, 1.0))
         else:
-            critical_rad = math.pi / 2.0
+            critical_rad = math.pi / 2.0   # surface observer: no critical angle < 90°
 
         theta_max = min(math.pi / 2.0, critical_rad - 1e-6)
 
@@ -314,7 +333,7 @@ class VanRhijn:
         W = 1.0 / np.sqrt(disc)
 
         integrand_theta = W * cos_t * sin_t   # shape (n_points,)
-        integral_scalar = float(np.trapz(integrand_theta, theta))
+        integral_scalar = float(np.trapezoid(integrand_theta, theta))
 
         return 2.0 * math.pi * L * integral_scalar
 
@@ -363,9 +382,11 @@ class VanRhijn:
         h = layer_altitude_km
         ratio = R / (R + h)
 
-        # Critical zenith angle
-        if ratio < 1.0:
-            critical_deg = math.degrees(math.asin(1.0 / ratio))
+        # Critical zenith angle.
+        # For a surface observer ratio < 1, so 1/ratio > 1 and the tangent
+        # condition is unreachable within the hemisphere — use 90° as limit.
+        if ratio >= 1.0:
+            critical_deg = math.degrees(math.asin(min(1.0 / ratio, 1.0)))
         else:
             critical_deg = 90.0
 

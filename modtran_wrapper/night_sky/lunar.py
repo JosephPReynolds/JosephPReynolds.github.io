@@ -225,7 +225,7 @@ class LunarModel:
             wl_interior = np.concatenate([wl_interior, [wl_end_nm]])
             irr_interior = np.concatenate([irr_interior, [irr_end]])
 
-        return float(np.trapz(irr_interior, wl_interior))
+        return float(np.trapezoid(irr_interior, wl_interior))
 
     # ------------------------------------------------------------------
     # Internal helpers

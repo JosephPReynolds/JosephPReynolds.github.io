@@ -149,7 +149,7 @@ class BrightStarCatalog:
         sigma_v = 85.0 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
         vband_T = np.exp(-0.5 * ((vband_wl - 550.0) / sigma_v) ** 2)
         planck_vband = _planck_per_nm(vband_wl, teff)
-        synthetic_V = float(np.trapz(vband_T * planck_vband, vband_wl))
+        synthetic_V = float(np.trapezoid(vband_T * planck_vband, vband_wl))
 
         target_flux = self.VEGA_FLUX_V_BAND * 10.0 ** (-star.vmag / 2.5)
 
