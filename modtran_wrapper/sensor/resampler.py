@@ -10,6 +10,9 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 
+# NumPy 2.0 renamed trapz -> trapezoid; keep compatibility with both.
+_trapz = getattr(np, "trapezoid", getattr(np, "trapz", None))  # NumPy 1.x / 2.x compat
+
 if TYPE_CHECKING:
     from .bandpass import BandpassFilter
 
@@ -156,7 +159,7 @@ class SpectralResampler:
         n_bands = srf.shape[0]
         result = np.empty(n_bands, dtype=float)
         for i in range(n_bands):
-            result[i] = float(np.trapz(srf[i] * spectrum, wavelength_nm))
+            result[i] = float(_trapz(srf[i] * spectrum, wavelength_nm))
         return result
 
     # ------------------------------------------------------------------

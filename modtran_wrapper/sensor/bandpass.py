@@ -10,6 +10,9 @@ from typing import Optional
 import numpy as np
 from scipy.interpolate import interp1d
 
+# NumPy 2.0 renamed trapz -> trapezoid; keep compatibility with both.
+_trapz = getattr(np, "trapezoid", getattr(np, "trapz", None))  # NumPy 1.x / 2.x compat
+
 
 @dataclass
 class BandpassFilter:
@@ -238,10 +241,10 @@ class BandpassFilter:
         Defined as ∫ λ T(λ) dλ / ∫ T(λ) dλ.
         Returns the midpoint of the wavelength range if the integral is zero.
         """
-        denom = float(np.trapz(self.transmission, self.wavelength_nm))
+        denom = float(_trapz(self.transmission, self.wavelength_nm))
         if denom == 0.0:
             return float(0.5 * (self.wavelength_nm[0] + self.wavelength_nm[-1]))
-        numer = float(np.trapz(self.wavelength_nm * self.transmission, self.wavelength_nm))
+        numer = float(_trapz(self.wavelength_nm * self.transmission, self.wavelength_nm))
         return numer / denom
 
     @property
@@ -253,7 +256,7 @@ class BandpassFilter:
         peak = float(np.max(self.transmission))
         if peak == 0.0:
             return 0.0
-        return float(np.trapz(self.transmission, self.wavelength_nm)) / peak
+        return float(_trapz(self.transmission, self.wavelength_nm)) / peak
 
     # ------------------------------------------------------------------
     # Integration
@@ -298,7 +301,7 @@ class BandpassFilter:
             fill_value=0.0,
         )
         t_interp = np.clip(interp(wavelength_nm), 0.0, 1.0)
-        return float(np.trapz(t_interp * spectrum, wavelength_nm))
+        return float(_trapz(t_interp * spectrum, wavelength_nm))
 
     # ------------------------------------------------------------------
     # Visualisation
